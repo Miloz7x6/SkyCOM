@@ -17,6 +17,9 @@ void COM_DATA_VAL(float val);
 
 void COM_TRANSMIT(int RX_addrs[16], int BpS);
 
+void COM_SET_BIT();
+void COM_RESET_BIT();
+int COM_GET_BIT();
 
 unsigned char DataBits[1500];    //holds the DataBits/ receive buffer
 

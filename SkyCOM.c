@@ -1,8 +1,5 @@
-#include "main.h"
 #include "SkyCOM.h"
-
 #include <string.h>
-#include <stdio.h>
 
 unsigned char DataBits[1500];    //holds the DataBits/ receive buffer
 unsigned char SetpBits[200];     //holds all non data values except checksum
@@ -40,7 +37,7 @@ struct Dta {
 	unsigned char Tpe;       //stores data type, see table for values
 	unsigned char BytVal;	 //store 8 bit byte
 	unsigned char PkgID;
-	unsigned char IoF;     //stores if value is int or float, 0 = int, 1 - float
+	unsigned char IoF;     //stores if value is int or float, 0 = int, 1 = float
 	float FltVal;    //stores the possible float value
 	char Str[255];  //stores possible string value
 	int IntVal;    //stores the possible int value
@@ -208,17 +205,8 @@ void COM_ERR(int A, int B) {
 	ArrayArray(Byt, 4);
 
 	if (B == 0) {
-		DataBits[spot] = 0;
-		spot++;
 		DECtoBIN(A, 9, spot, 0);
-		spot = spot + 9;
-	} else {
-		DataBits[spot] = 1;
-		spot++;
-		DECtoBIN(A, 5, spot, 0);
-		spot = spot + 5;
-		DECtoBIN(B, 4, spot, 0);
-		spot = spot + 4;
+		spot = spot + 10;
 	}
 }
 
@@ -403,24 +391,21 @@ void COM_TRANSMIT(int RX_addrs[16], int BpS) { //address array, MUST be an initi
 		FullMessage[i + MsgLenght] = sum[i];
 	}
 
-	//bits per second for transmission (max 1000 is using "HAL_Delay()" function
+	//go through bits and set to value
 	for (int i = 0; i < MsgLenght + 16; i++) {
-
 		if (FullMessage[i] == 0) {
-			HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOA, LED1_Pin, GPIO_PIN_RESET);
-
-			printf("0");
+			//set TX pin LOW
+			COM_RESET_BIT();
 		} else if (FullMessage[i] == 1) {
-			HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOA, LED1_Pin, GPIO_PIN_SET);
-			printf("1");
+			//set TX pin HIGH
+			COM_SET_BIT();
 		}
-		HAL_Delay(1000 / BpS);
+		//bits per second for transmission (max 1000 is using "HAL_Delay()" function
+		uC_DELAY(1000/BpS);
 	}
-	printf("\n");
-	HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, LED1_Pin, GPIO_PIN_RESET);
+
+	//reset TX to make sure line is LOW after transmission
+	COM_RESET_BIT();
 
 	spot = 0;
 	PkgCnt = 0;
@@ -428,6 +413,12 @@ void COM_TRANSMIT(int RX_addrs[16], int BpS) { //address array, MUST be an initi
 }
 
 
+unsigned char NewMsg = 0;
+int MsgCnt = 0;
+
+unsigned char MSG_NEW(){
+	return NewMsg;
+}
 
 //process all data in the message
 int MSG_PROCESS(int MsgLen) {
@@ -598,6 +589,7 @@ int MSG_PROCESS(int MsgLen) {
 				curs = curs + 8;
 			}
 
+			//store byte
 			else if (DtaTpe == 12) {
 				DtaCnt++;
 				Data[k].BytVal = ConvertToDec(curs, 8);
@@ -661,6 +653,56 @@ int MSG_PROCESS(int MsgLen) {
 	return state;
 }
 
+unsigned char MSG_RECIEVING() {
+
+	uint16_t BitStart;
+	uint16_t BitTim;
+
+	unsigned char ZeroCnt = 0;
+	unsigned char BitOne = 1;
+	unsigned char Recieving = 0;
+	int BitCnt = 1;
+
+	//mark transition to high for first bit
+	if (COM_GET_BIT() == 1 && Recieving == 0) {
+		BitStart = COM_GET_TIM();		//save counter time
+		Recieving = 1;									//mark first bit and go into the receiving loop
+	}
+
+	while(Recieving == 1){
+
+		if (COM_GET_BIT() == 0 && BitOne == 1) {
+			BitTim = COM_GET_TIM() - BitStart;		//calculate bit time
+			BitOne = 0;
+			////printf("New message! #%d\n", MsgCnt);
+			uC_DELAY((BitTim / 1000) / 2);				//delay exact time it took transmitter to send a bit
+														//since at the end of a bit, only delay half a bit-time
+			////printf("BitOneTime: %d\n", BitTim);
+			DataBits[0] = 1;
+		}
+		else if (COM_GET_BIT() == 1 && BitOne == 0) {
+			DataBits[BitCnt] = 1;
+			BitCnt++;
+			ZeroCnt = 0;
+			uC_DELAY(BitTim / 1000);
+		} else if (COM_GET_BIT() == 0 && BitOne == 0) {
+			DataBits[BitCnt] = 0;
+			BitCnt++;
+			ZeroCnt++;
+			uC_DELAY(BitTim / 1000);
+		}
+
+		//if more then 10 0's are received, assume end of message
+		if (ZeroCnt > 10 && Recieving == 1) {
+			ZeroCnt = 0;
+			Recieving = 0;
+			NewMsg = 1;
+			MSG_PROCESS(BitCnt-10);
+			MsgCnt++;
+		}
+	}
+}
+
 int MSG_DATA_CNT() {
 	return DtaCnt;
 }
@@ -705,6 +747,7 @@ float MSG_VAL_GET_FLT(int DtaAddr) {
 	return Data[DtaAddr].FltVal;
 }
 void MSG_RX_RDY() {
+	NewMsg = 0;
 	DtaCnt = 0;
 	PkgCnt = 0;
 	mSctCnt = 0;
