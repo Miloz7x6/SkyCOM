@@ -5,8 +5,6 @@ SkyCOM is an advanced serial communications protocol for communication between u
 ## origins
 I started this project at the start of 2021, building a custom serial protocol + library since working with RS232 on industrial CNC machines at my job gave me PTSD.
 
-## rundown
----
 ## features
 * checksun
 * up to 1023 devices
