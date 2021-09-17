@@ -132,36 +132,48 @@ This re-initializes some variables so a new message can be recieved.
 # Examples
 
 ```
-void COM_SET_BIT(){
-	HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_SET);
-}
-void COM_RESET_BIT(){
-	HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_RESET);
+//uC set TX pin value
+void uC_TX_PIN(unsigned char bit){
+	if(bit == 1){
+		HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_SET);
+	}
+	else if(bit == 0){
+		HAL_GPIO_WritePin(GPIOB, RS485_TX_Pin, GPIO_PIN_RESET);
+	}
+
 }
 
-int COM_GET_BIT(){
+//uC return RX pin value
+int uC_GET_BIT(){
 	if(HAL_GPIO_ReadPin(GPIOB, RS485_RX_Pin) == GPIO_PIN_SET){
 		return 1;
 	} else if(HAL_GPIO_ReadPin(GPIOB, RS485_RX_Pin) == GPIO_PIN_RESET){
 		return 0;
 	}
 }
-uint16_t COM_GET_TIM(){
+
+//uC delay milliseconds
+void uC_DelayMs(uint32_t MsDelay){
+	HAL_Delay(MsDelay);
+}
+
+//uC return timer
+uint16_t uC_GET_TIM(){
 	return __HAL_TIM_GET_COUNTER(&htim6);
 }
 ```
 Since the library is universal and works on anything running C, the hardware commands can be set somewhere else outside of the SkyCOM.c file.
 ```
-COM_SET_BIT()       //set TX pin HIGH
+uC_TX_PIN(bit)      //set TX pin
 ```
 ```
-COM_RESET_BIT()     //set TX pin LOW
+uC_DelayMs(Delay)   //uc delay in milliseconds (1/1000 second)
 ```
 ```
-COM_GET_BIT()       //get RX pin value
+uC_GET_BIT()        //get RX pin value
 ```
 ```
-COM_GET_TIM()       //get uS timer value
+uC_GET_TIM()        //get uS timer value
 ```
 **These functions are neccesairy for recieving and transmitting!**
 
@@ -169,85 +181,96 @@ COM_GET_TIM()       //get uS timer value
 ---
 ```
 int main(void){
-
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM6_Init();
-
-    //start timer
-    HAL_TIM_Base_Start(&htim6);
-    
-    //setup SkyCOM library
-    COM_START(1, 2);        //address 1, protocol 2
-
-    int Addrs[16] = {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   
-    while(1){
-        COM_DATA_STRUCT(12);        //set data structure to 12
-        COM_DATA_BYTE(1);           //add byte
-        COM_DATA_BYTE(0);           //..
-        COM_TRANSMIT(Addrs,1000);   //transmit message at 1000 bits per second
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_TIM6_Init();
 
-        //delay
-        HAL_Delay(500);
+  //start timer (STM32) 
+  HAL_TIM_Base_Start(&htim6);
 
-        //repeat with bytes flipped
-        COM_DATA_STRUCT(12);
-        COM_DATA_BYTE(0);
-        COM_DATA_BYTE(1);
-        COM_TRANSMIT(Addrs,1000);
+  //start library as device one, protovol version 2
+  COM_START(1, 2);
 
-        HAL_Delay(500);
-    }
+  //reciever adress array
+  int Addrs[16] = {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+  while(1){
+
+	  COM_DATA_STRUCT(15);
+	  COM_DATA_VAL(42);
+	  COM_DATA_STRING("hello there");
+	  COM_TRANSMIT(Addrs,1000);
+
+	  HAL_Delay(500);
+
+	  COM_DATA_STRUCT(15);
+	  COM_DATA_VAL(52.5645);
+	  COM_DATA_STRING("made by miloz");
+	  COM_TRANSMIT(Addrs,1000);
+
+	  HAL_Delay(500);
+  }
 }
 ```
 
-Example of the user functions for STM32 usign the Hardware Abstraction Layer (HAL) and timer 6.
+Example of the user functions for STM32 usign the Hardware Abstraction Layer (HAL) and timer 6. And ```printf()``` through debugger.
 
 ## recieving example
 ---
 ```
 int main(void){
 
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM6_Init();
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_TIM6_Init();
+  
+  //start timer (STM32) 
+  HAL_TIM_Base_Start(&htim6);
 
-    //start timer
-    HAL_TIM_Base_Start(&htim6);
+  //start library as device 2, protovol version 2
+  COM_START(2, 2);
 
-    //setup SkyCOM library
-    COM_START(2, 2);        //address 2, protocol 2
+  while(1){
+      //this function checks if a message is being recieved, if so recieve and process message
+	  MSG_RECIEVING();
 
-    while(1){
-        //check if recieving and if so store and process the bits
-        MSG_RECIEVING();
+      //if a new message is available, MSG_NEW() is 1
+	  if(MSG_NEW() == 1){
 
-        if(MSG_NEW() == 1){
-            //check structure of message so correct data proccessing is used
-            if(MSG_GET_STRUCT(0) == 12){
-                //check value of byte 1 and toggle LED based on value
-                if(MSG_GET_BYTE(1) == 1){
-                    HAL_GPIO_WritePin(GPIOA, LED1_Pin, GPIO_PIN_SET);
-                } else if(MSG_GET_BYTE(1) == 0){
-                    HAL_GPIO_WritePin(GPIOA, LED1_Pin, GPIO_PIN_RESET);
-                }
+		  printf("\nstruct: #%d\n", MSG_GET_STRUCT(0));
 
-                //check value of byte 2 and toggle LED based on value
-                if(MSG_GET_BYTE(2) == 1){
-                    HAL_GPIO_WritePin(GPIOA, LED2_Pin, GPIO_PIN_SET);
-                } else if(MSG_GET_BYTE(2) == 0){
-                    HAL_GPIO_WritePin(GPIOA, LED2_Pin, GPIO_PIN_RESET);
-                }
-            }
-            //clear message so new message can be recieved
-            MSG_RX_RDY();
-        }
-    }
+          //specific processing for message
+		  if(MSG_GET_STRUCT(0) == 15){
+
+			  if(MSG_VAL_DATA_TYPE(1) == 0){
+				  printf("integral val: %d\n", MSG_VAL_GET_INT(1));
+			  } else if(MSG_VAL_DATA_TYPE(1) == 1){
+				  printf("floating val: %f\n", MSG_VAL_GET_FLT(1));
+			  }
+
+			  printf("string: %s\n", MSG_GET_STRING(2));
+		  }
+
+          //when done processing message, MSG_RX_RDY() enebles reciever again.
+		  MSG_RX_RDY();
+	  }
+  }
 }
 ```
+## serial output
+```
+struct: #15
+integral val: 42
+string: hello there
+
+struct: #15
+floating val: 52.564503
+string: made by miloz
+```
+
 # License
 Copyright [2021] [Milos de Wit]
 

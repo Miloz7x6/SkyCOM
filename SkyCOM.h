@@ -1,10 +1,15 @@
-#ifndef SkyCOM_H_   /* Include guard */
+#ifndef SkyCOM_H_
 #define SkyCOM_H_
 
-#include "stm32l1xx_hal.h"
+#include "stdio.h"
 
+//fundamental functions
 void COM_START(int addr, int protocol);
+void COM_TRANSMIT(int RX_addrs[16], int BpS);
+unsigned char MSG_RECIEVING();
+void MSG_RX_RDY();
 
+//data functions
 void COM_DATA_ID(int val);
 void COM_DATA_STRUCT(int val);
 void COM_DATA_REQ(int val);
@@ -15,24 +20,25 @@ void COM_ERR(int A, int B);
 void COM_DATA_STRING(char Msg[]);
 void COM_DATA_VAL(float val);
 
-void COM_TRANSMIT(int RX_addrs[16], int BpS);
+//user hardware functions
+void uC_TX_PIN(unsigned char bit);
+void uC_EN_PIN(unsigned char bit);
 
-void COM_SET_BIT();
-void COM_RESET_BIT();
-int COM_GET_BIT();
 
-unsigned char DataBits[1500];    //holds the DataBits/ receive buffer
+void uC_DelayMs(uint32_t MsDelay);
+uint16_t uC_GET_TIM();
+int uC_GET_BIT();
 
-unsigned char MSG_RECIEVING();
-int MSG_PROCESS(int MsgLen);
+
+//data functions
+int MSG_VAL_DATA_TYPE(int DtaAddr);
+int MSG_GET_DATA_TYPE(int DtaAddr);
+
 int MSG_DATA_CNT();
-int MSG_DATA_TYPE(int DtaAddr);
 unsigned char MSG_GET_STRUCT(int DtaAddr);
 unsigned char MSG_GET_BYTE(int DtaAddr);
-int MSG_GET_DATA_TYPE(int DtaAddr);
+
 int MSG_VAL_GET_INT(int DtaAddr);
 float MSG_VAL_GET_FLT(int DtaAddr);
-
-void MSG_RX_RDY();
 
 #endif
