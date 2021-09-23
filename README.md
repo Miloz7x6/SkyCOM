@@ -1,14 +1,15 @@
 # SkyCOM
 
-SkyCOM is an advanced serial communications protocol for communication between up to 1023 microcontrollers on a network.
+SkyCOM is an advanced, easy to implement serial communications protocol for communication between up to 1023 microcontrollers on a network.
 
-## origins
+## Origins
 I started this project at the start of 2021, building a custom serial protocol + library since working with RS232 on industrial CNC machines at my job gave me PTSD.
 
 ## features
+* easy to process and implement in projects
 * checksun
 * up to 1023 devices
-* int, byte and floating point values send true binary values
+* int, byte and floating point values send as true binary values
 * build in system commands
 
 ## datatypes
@@ -17,13 +18,13 @@ I started this project at the start of 2021, building a custom serial protocol +
 * integer
 * floating point
 
-# how to use the SkyCOM library
+# How to use the SkyCOM library
 
-## hardware
+## Hardware
 ---
 SkyCOM is designed to work with ttl RX/TX lines or RS485 and the library directly supports and manages RE (Reciever Enable) and DE (Drive Enable) outputs for use with RS485 IC's
 
-## transmitting
+## Transmitting
 ---
 ```
 COM_START(addr, version)
@@ -63,7 +64,7 @@ COM_TRANSMIT function generates the bits to be transmitted. The function takes a
 
 The array must be initialized to 0 and have 16 entities
 
-## recieving
+## Recieving
 ---
 ```
 MSG_RECIEVING()
