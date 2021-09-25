@@ -18,6 +18,12 @@ I started this project at the start of 2021, building a custom serial protocol +
 * integer
 * floating point
 
+## this repository
+* For simple projects implementation you can use the basic library, this doesn't use interrupts and only one hardware timer. Because of this it uses clock cycles when transmitting but is really easy to implement and fine for basic/ low speed projects.
+
+
+* When implemented in more advanced projects, use of the advanced library is reccomended, this uses interrupts and timers and is harder to implement in a project. This does make the library more efficient and if you start a new project it is reccomended to use this version of the library.
+
 # How to use the SkyCOM library
 
 ## Hardware
